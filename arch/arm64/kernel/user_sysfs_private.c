@@ -659,7 +659,7 @@ void log_suspend_enter(void)
 
 		if (strlen(sleep_log_name) < 1) {
 			sprintf(sleep_log_name,
-					"/data/local/log/aplog/sleeplog%d%02d%02d_%02d%02d%02d.txt",
+					"/data/local/newlog/aplog/sleeplog%d%02d%02d_%02d%02d%02d.txt",
 					tm_.tm_year + 1900, tm_.tm_mon + 1, tm_.tm_mday, tm_.tm_hour,
 					tm_.tm_min, tm_.tm_sec);
 			printk("%s(), sleep_log_name = %s \n", __func__, sleep_log_name);

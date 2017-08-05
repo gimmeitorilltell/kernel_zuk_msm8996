@@ -29,7 +29,7 @@ static void set_sensor_attr(struct device *dev,
 
 	for (i = 0; attributes[i] != NULL; i++)
 	{
-		attributes[i]->attr.mode = S_IRWXUGO; //override mode for dragonboard
+//		attributes[i]->attr.mode = S_IRWXUGO; //override mode for dragonboard
 		if ((device_create_file(dev, attributes[i])) < 0)
 			pr_err("[SENSOR CORE] fail device_create_file"\
 				"(dev, attributes[%d])\n", i);

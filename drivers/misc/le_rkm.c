@@ -111,11 +111,6 @@ void __init arm_rkm_log_backup(void)
 	{
 		phys_log_end = phys_kernel_log_start+phys_kernel_log_size;
 
-		if ((phys_log_end  < 0x82000000) || (phys_log_end  > 0x82200000)) {
-			pr_err("rkm:unvalid kernel log pa,end phys: 0x%lx\n",phys_log_end);
-			phys_kernel_log_start=phys_kernel_log_size=0;
-		}
-
 		if (phys_kernel_log_size &&
 				 !memblock_is_region_memory(phys_kernel_log_start, phys_kernel_log_size )) {
 			pr_err("rkm: 0x%08lx+0x%08lx is not a memory region - disabling kernel log\n",

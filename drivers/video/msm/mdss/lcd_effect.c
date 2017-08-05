@@ -2,6 +2,9 @@
 
 extern int is_show_lcd_param;
 extern void show_lcd_param(struct dsi_cmd_desc *cmds, int cmd_cnt);
+#ifdef CONFIG_BACKLIGHT_LM36923
+int lm36923_sunlight_settings (int level);
+#endif
 
 #define TAG "[LCD_EFFECT: ]"
 //#define LCDDEBUG
@@ -390,6 +393,9 @@ static struct dsi_cmd_desc *copy_used_effect_code(struct panel_effect_data *pane
 
 	#else//z2_plus
 	temp = copy_single_effect_code(panel_data, temp, EFFECT_CE, effect[EFFECT_CE].level, cnt);
+	#ifdef CONFIG_PRODUCT_Z2_X
+	temp = copy_single_effect_code(panel_data, temp, EFFECT_CABC, effect[EFFECT_CABC].level, cnt);
+	#endif
 	#endif
 	lcd_effect_info("%s,EFFECT_CE level:%d,EFFECT_CT level:%d,EFFECT_CABC level:%d,EFFECT_HBM level:%d\n",__func__,
 	effect[EFFECT_CE].level,effect[EFFECT_CT].level,effect[EFFECT_CABC].level,effect[EFFECT_HBM].level);
@@ -583,8 +589,14 @@ static int lcd_set_mode(struct msm_fb_data_type *mfd, struct panel_effect_data *
 
 static int lcd_set_effect(struct msm_fb_data_type *mfd, struct panel_effect_data *panel_data, int index, int level)
 {
-	int ret;
+	int ret = 0;
 	struct lcd_effect_data *effect_data = panel_data->effect_data;
+
+#ifdef CONFIG_BACKLIGHT_LM36923
+		if(index == 3){
+			ret = lm36923_sunlight_settings(level);
+		}
+#endif
 
 	if (index >= effect_data->supported_effect || index < 0) {
 		lcd_effect_info("%s index invalid, max index is: 0 - %d\n", __func__, effect_data->supported_effect - 1);

@@ -20,7 +20,9 @@
 #include <linux/batterydata-lib.h>
 #include <linux/power_supply.h>
 
+#if defined CONFIG_PRODUCT_Z2_PLUS || defined CONFIG_PRODUCT_Z2_ROW
 #define SUPPORT_LENUK_BATTERY_ID_ALGO
+#endif
 
 static int of_batterydata_read_lut(const struct device_node *np,
 			int max_cols, int max_rows, int *ncols, int *nrows,
@@ -372,8 +374,10 @@ struct device_node *of_batterydata_get_best_profile(
 				continue;
 			for (i = 0; i < batt_ids.num; i++) {
 #ifdef SUPPORT_LENUK_BATTERY_ID_ALGO
+#if defined CONFIG_PRODUCT_Z2_PLUS
 				if (((batt_id_kohm >= 1) && (batt_id_kohm < 20) && (batt_ids.kohm[i] == 9))
-						||  ((batt_id_kohm >= 20) && (batt_id_kohm < 80) && (batt_ids.kohm[i] == 50))
+						||  ((batt_id_kohm >= 20) && (batt_id_kohm < 40) && (batt_ids.kohm[i] == 50))
+						||  ((batt_id_kohm >= 40) && (batt_id_kohm < 80) && (batt_ids.kohm[i] == 50))
 						||  ((batt_id_kohm >= 80) && (batt_id_kohm < 120) && (batt_ids.kohm[i] == 100))) {
 					best_node = node;
 					best_id_kohm = batt_ids.kohm[i];
@@ -383,6 +387,20 @@ struct device_node *of_batterydata_get_best_profile(
 					delta = 0;
 					break;
 				}
+#else
+					if (((batt_id_kohm >= 1) && (batt_id_kohm < 20) && (batt_ids.kohm[i] == 50))
+											||	((batt_id_kohm >= 20) && (batt_id_kohm < 38) && (batt_ids.kohm[i] == 32))
+											||	((batt_id_kohm >= 38) && (batt_id_kohm < 120) && (batt_ids.kohm[i] == 50))
+											||	((batt_id_kohm >= 120) && (batt_ids.kohm[i] == 100))) {
+					best_node = node;
+					best_id_kohm = batt_ids.kohm[i];
+					in_range = false;
+					limit = 0;
+					best_delta = 0;
+					delta = 0;
+					break;
+				}
+#endif
 #else
 				delta = abs(batt_ids.kohm[i] - batt_id_kohm);
 				limit = (batt_ids.kohm[i] * id_range_pct) / 100;
@@ -412,6 +430,9 @@ struct device_node *of_batterydata_get_best_profile(
 	pr_info("profile id %d batt id %d",
 		best_id_kohm, batt_id_kohm);
 #else
+	pr_info("profile id %d batt id %d",
+		best_id_kohm, batt_id_kohm);
+
 	/* check that profile id is in range of the measured batt_id */
 	if (abs(best_id_kohm - batt_id_kohm) >
 			((best_id_kohm * id_range_pct) / 100)) {
@@ -464,14 +485,27 @@ int of_batterydata_read_data(struct device_node *batterydata_container_node,
 			continue;
 		for (i = 0; i < batt_ids.num; i++) {
 #ifdef SUPPORT_LENUK_BATTERY_ID_ALGO
+#if defined CONFIG_PRODUCT_Z2_PLUS
 			if (((batt_id_kohm >= 1) && (batt_id_kohm < 20) && (batt_ids.kohm[i] == 9))
-					||  ((batt_id_kohm >= 20) && (batt_id_kohm < 80) && (batt_ids.kohm[i] == 50))
+					||  ((batt_id_kohm >= 20) && (batt_id_kohm < 40) && (batt_ids.kohm[i] == 50))
+					||  ((batt_id_kohm >= 40) && (batt_id_kohm < 80) && (batt_ids.kohm[i] == 50))
 					||  ((batt_id_kohm >= 80) && (batt_id_kohm < 120) && (batt_ids.kohm[i] == 100))) {
 				best_node = node;
 				best_id_kohm = batt_ids.kohm[i];
 				delta = 0;
 				break;
 			}
+#else
+				if (((batt_id_kohm >= 1) && (batt_id_kohm < 20) && (batt_ids.kohm[i] == 50))
+									||	((batt_id_kohm >= 20) && (batt_id_kohm < 38) && (batt_ids.kohm[i] == 32))
+									||	((batt_id_kohm >= 38) && (batt_id_kohm < 120) && (batt_ids.kohm[i] == 50))
+									||	((batt_id_kohm > 120) && (batt_ids.kohm[i] == 100))) {
+				best_node = node;
+				best_id_kohm = batt_ids.kohm[i];
+				delta = 0;
+				break;
+			}
+#endif
 #else
 			delta = abs(batt_ids.kohm[i] - batt_id_kohm);
 			if (delta < best_delta || !best_node) {
@@ -483,10 +517,9 @@ int of_batterydata_read_data(struct device_node *batterydata_container_node,
 		}
 	}
 
-#ifdef SUPPORT_LENUK_BATTERY_ID_ALGO
 	pr_info("profile id %d batt id %d",
 		best_id_kohm, batt_id_kohm);
-#endif
+
 	if (best_node == NULL) {
 		pr_err("No battery data found\n");
 		return -ENODATA;

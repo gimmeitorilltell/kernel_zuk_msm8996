@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,6 +33,7 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include "mdss_livedisplay.h"
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -272,6 +273,11 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev,
 	return rc;
 }
 
+extern int touch_gesture;
+#ifdef CONFIG_PRODUCT_Z2_X
+struct regulator *vdd;
+struct regulator *vcc_i2c;
+#endif
 static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -294,6 +300,10 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 
 	if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
 		pr_debug("reset disable: pinctrl not enabled\n");
+#ifdef CONFIG_PRODUCT_Z2_X
+	if(touch_gesture)
+		goto end;
+#endif
 
 	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
@@ -301,6 +311,10 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	if (ret)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
+#ifdef CONFIG_PRODUCT_Z2_X
+	ret = regulator_disable(vdd);
+	ret = regulator_disable(vcc_i2c);
+#endif
 
 end:
 	return ret;
@@ -318,6 +332,10 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+#ifdef CONFIG_PRODUCT_Z2_X
+		if(touch_gesture)
+			goto gesture_end;
+#endif
 
 	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
@@ -327,6 +345,17 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 		return ret;
 	}
+#ifdef CONFIG_PRODUCT_Z2_X
+	ret = regulator_enable(vdd);
+	ret = regulator_enable(vcc_i2c);
+	gpio_set_value(9, 0);
+	msleep(1);
+	gpio_set_value(9, 1);
+#endif
+
+#ifdef CONFIG_PRODUCT_Z2_X
+gesture_end:
+#endif
 
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
@@ -2601,6 +2630,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					&ctrl_pdata->dba_work, HZ);
 		}
 		break;
+	case MDSS_EVENT_UPDATE_LIVEDISPLAY:
+		rc = mdss_livedisplay_update(ctrl_pdata, (int)(unsigned long) arg);
+		break;
 	default:
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
 		break;
@@ -3018,6 +3050,10 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	const char *ctrl_name;
 	struct mdss_util_intf *util;
 
+#ifdef CONFIG_PRODUCT_Z2_X
+	vdd = regulator_get(NULL, "pm8994_l22");	
+	vcc_i2c = regulator_get(NULL, "pm8994_l18");	
+#endif
 	if (!pdev || !pdev->dev.of_node) {
 		pr_err("%s: pdev not found for DSI controller\n", __func__);
 		return -ENODEV;

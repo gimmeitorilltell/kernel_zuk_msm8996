@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1430,6 +1430,7 @@ static void msm_vfe47_update_camif_state(struct vfe_device *vfe_dev,
 		msm_camera_io_w_mb((update_state == DISABLE_CAMIF ? 0x0 : 0x6),
 				vfe_dev->vfe_base + 0x478);
 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
+		vfe_dev->axi_data.src_info[VFE_PIX_0].flag = 0;
 		/* testgen OFF*/
 		if (vfe_dev->axi_data.src_info[VFE_PIX_0].input_mux == TESTGEN)
 			msm_camera_io_w(1 << 1, vfe_dev->vfe_base + 0xC58);
@@ -1610,11 +1611,18 @@ static void msm_vfe47_cfg_axi_ub_equal_default(
 	uint32_t prop_size = 0;
 	uint32_t wm_ub_size;
 	uint64_t delta;
+	uint32_t rdi_ub_offset;
 
-	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
-		if (axi_data->free_wm[i] > 0) {
-			num_used_wms++;
-			total_image_size += axi_data->wm_image_size[i];
+	if (frame_src == VFE_PIX_0) {
+		for (i = 0; i < axi_data->hw_info->num_wm; i++) {
+			if (axi_data->free_wm[i] &&
+				SRC_TO_INTF(
+				HANDLE_TO_IDX(axi_data->free_wm[i])) ==
+				VFE_PIX_0) {
+				num_used_wms++;
+				total_image_size +=
+					axi_data->wm_image_size[i];
+			}
 		}
 	}
 	if (vfe_dev->pdev->id == ISP_VFE0) {
@@ -1627,7 +1635,17 @@ static void msm_vfe47_cfg_axi_ub_equal_default(
 		pr_err("%s: incorrect VFE device\n", __func__);
 	}
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
-		if (axi_data->free_wm[i]) {
+		if (!axi_data->free_wm[i]) {
+			msm_camera_io_w(0,
+				vfe_dev->vfe_base +
+				vfe_dev->hw_info->vfe_ops.axi_ops.
+					ub_reg_offset(vfe_dev, i));
+		}
+		if (!axi_data->free_wm[i] || frame_src != SRC_TO_INTF(
+				HANDLE_TO_IDX(axi_data->free_wm[i])))
+			continue;
+
+		if (frame_src == VFE_PIX_0) {
 			delta = (uint64_t)axi_data->wm_image_size[i] *
 					(uint64_t)prop_size;
 			do_div(delta, total_image_size);
@@ -1636,9 +1654,19 @@ static void msm_vfe47_cfg_axi_ub_equal_default(
 			msm_camera_io_w(ub_offset << 16 | (wm_ub_size - 1),
 				vfe_dev->vfe_base + VFE47_WM_BASE(i) + 0x18);
 			ub_offset += wm_ub_size;
-		} else
-			msm_camera_io_w(0,
-				vfe_dev->vfe_base + VFE47_WM_BASE(i) + 0x18);
+		} else {
+
+			rdi_ub_offset = (SRC_TO_INTF(
+					HANDLE_TO_IDX(axi_data->free_wm[i])) -
+					VFE_RAW_0) * 2 *
+					axi_data->hw_info->min_wm_ub;
+			wm_ub_size = axi_data->hw_info->min_wm_ub * 2;
+			msm_camera_io_w((rdi_ub_offset << 16 |
+				(wm_ub_size - 1)),
+				vfe_dev->vfe_base +
+				vfe_dev->hw_info->vfe_ops.axi_ops.
+						ub_reg_offset(vfe_dev, i));
+		}
 	}
 }
 
@@ -2246,13 +2274,20 @@ static int msm_vfe47_get_platform_data(struct vfe_device *vfe_dev)
 		goto vfe_no_resource;
 	}
 
-	vfe_dev->vfe_vbif_mem = platform_get_resource_byname(
-		vfe_dev->pdev,
-		IORESOURCE_MEM, "vfe_vbif");
-	if (!vfe_dev->vfe_vbif_mem) {
-		pr_err("%s: no mem resource?\n", __func__);
-		rc = -ENODEV;
-		goto vfe_no_resource;
+int msm_vfe47_get_platform_data(struct vfe_device *vfe_dev)
+{
+	int rc = 0;
+	void __iomem *vfe_fuse_base;
+	uint32_t vfe_fuse_base_size;
+
+	vfe_dev->vfe_base = msm_camera_get_reg_base(vfe_dev->pdev, "vfe", 0);
+	if (!vfe_dev->vfe_base)
+		return -ENOMEM;
+	vfe_dev->vfe_vbif_base = msm_camera_get_reg_base(vfe_dev->pdev,
+					"vfe_vbif", 0);
+	if (!vfe_dev->vfe_vbif_base) {
+		rc = -ENOMEM;
+		goto vbif_base_fail;
 	}
 
 	vfe_dev->vfe_irq = platform_get_resource_byname(vfe_dev->pdev,
@@ -2263,7 +2298,62 @@ static int msm_vfe47_get_platform_data(struct vfe_device *vfe_dev)
 		goto vfe_no_resource;
 	}
 
-vfe_no_resource:
+	vfe_dev->vfe_base_size = msm_camera_get_res_size(vfe_dev->pdev, "vfe");
+	vfe_dev->vfe_vbif_base_size = msm_camera_get_res_size(vfe_dev->pdev,
+						"vfe_vbif");
+	if (!vfe_dev->vfe_base_size || !vfe_dev->vfe_vbif_base_size) {
+		rc = -ENOMEM;
+		goto get_res_fail;
+	}
+	vfe_dev->vfe_hw_limit = 0;
+	vfe_fuse_base = msm_camera_get_reg_base(vfe_dev->pdev,
+					"vfe_fuse", 0);
+	vfe_fuse_base_size = msm_camera_get_res_size(vfe_dev->pdev,
+						"vfe_fuse");
+	if (vfe_fuse_base) {
+		if (vfe_fuse_base_size)
+			vfe_dev->vfe_hw_limit =
+				(msm_camera_io_r(vfe_fuse_base) >> 7) & 0x3;
+		msm_camera_put_reg_base(vfe_dev->pdev, vfe_fuse_base,
+				"vfe_fuse", 0);
+	}
+	rc = vfe_dev->hw_info->vfe_ops.platform_ops.get_regulators(vfe_dev);
+	if (rc)
+		goto get_regulator_fail;
+
+	rc = vfe_dev->hw_info->vfe_ops.platform_ops.get_clks(vfe_dev);
+	if (rc)
+		goto get_clkcs_fail;
+
+	rc = msm_camera_register_irq(vfe_dev->pdev, vfe_dev->vfe_irq,
+		msm_isp_process_irq,
+		IRQF_TRIGGER_RISING, "vfe", vfe_dev);
+	if (rc < 0)
+		goto irq_register_fail;
+
+	msm_camera_enable_irq(vfe_dev->vfe_irq, 0);
+
+	rc = msm_isp_init_bandwidth_mgr(vfe_dev, ISP_VFE0 + vfe_dev->pdev->id);
+	if (rc)
+		goto init_bw_fail;
+
+	return 0;
+
+init_bw_fail:
+	msm_camera_unregister_irq(vfe_dev->pdev, vfe_dev->vfe_irq, "vfe");
+irq_register_fail:
+	vfe_dev->hw_info->vfe_ops.platform_ops.put_clks(vfe_dev);
+get_clkcs_fail:
+	vfe_dev->hw_info->vfe_ops.platform_ops.put_regulators(vfe_dev);
+get_regulator_fail:
+get_res_fail:
+	vfe_dev->vfe_vbif_base_size = 0;
+	vfe_dev->vfe_base_size = 0;
+vfe_irq_fail:
+	msm_camera_put_reg_base(vfe_dev->pdev, vfe_dev->vfe_base,
+					"vfe_vbif", 0);
+vbif_base_fail:
+	msm_camera_put_reg_base(vfe_dev->pdev, vfe_dev->vfe_base, "vfe", 0);
 	return rc;
 }
 

@@ -206,11 +206,7 @@
 #ifdef CONFIG_QPNP_SMBCHARGER_HW
 			qcom,fastchg-current-ma = <2000>;
 #else
-#ifdef CONFIG_PRODUCT_Z2_X
-			qcom,fastchg-current-ma = <1900>;
-#else
 			qcom,fastchg-current-ma = <2400>;
-#endif
 #endif
 			qcom,float-voltage-mv = <4400>;
 			qcom,resume-delta-mv = <200>;
@@ -219,7 +215,7 @@
 			qcom,dc-psy-ma = <1500>;
 			qcom,rparasitic-uohm = <100000>;
 			qcom,bms-psy-name = "bms";
-			qcom,thermal-mitigation = <1400 500 0>;
+			qcom,thermal-mitigation = <1400 0>;
 			qcom,parallel-usb-min-current-ma = <1400>;
 			qcom,parallel-usb-9v-min-current-ma = <900>;
 			qcom,parallel-allowed-lowering-ma = <500>;
@@ -227,11 +223,7 @@
 			qcom,pmic-revid = <&pmi8994_revid>;
 			qcom,force-aicl-rerun;
 			qcom,aicl-rerun-period-s = <180>;
-#ifdef CONFIG_PRODUCT_Z2_X
-			qcom,warm-cc-comp = <1000>;
-#else
 			qcom,warm-cc-comp = <1300>;
-#endif
 			qcom,warm-fv-comp = <4100>;
 			qcom,cool-cc-comp = <500>;
 			qcom,cool-fv-comp = <4400>;
@@ -348,8 +340,7 @@
 			qcom,fg-cc-cv-threshold-mv = <4390>;
 			qcom,pmic-revid = <&pmi8994_revid>;
 			qcom,capacity-learning-feedback;
-			qcom,thermal-coefficients = [b7 85 b2 49 71 35];
-
+			qcom,thermal-coefficients = [b7 85 b2 49 71 35];  // NTC B: 4250
 			qcom,fg-soc@4000 {
 				status = "okay";
 				reg = <0x4000 0x100>;
@@ -491,10 +482,15 @@
 				qcom,qpnp-ibb-step-size = <100000>;
 				qcom,qpnp-ibb-slew-rate = <2000000>;
 				qcom,qpnp-ibb-use-default-voltage;
+			#ifdef CONFIG_PRODUCT_Z2_PLUS
+				qcom,qpnp-ibb-init-voltage = <5000000>;
+				qcom,qpnp-ibb-init-amoled-voltage = <4000000>;
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			#else
 				qcom,qpnp-ibb-init-voltage = <5500000>;
 				qcom,qpnp-ibb-init-amoled-voltage = <4000000>;
 				qcom,qpnp-ibb-init-lcd-voltage = <5500000>;
-
+			#endif
 				qcom,qpnp-ibb-soft-start = <1000>;
 
 				qcom,qpnp-ibb-discharge-resistor = <32>;
@@ -523,10 +519,15 @@
 				qcom,qpnp-lab-step-size = <100000>;
 				qcom,qpnp-lab-slew-rate = <5000>;
 				qcom,qpnp-lab-use-default-voltage;
+			#ifdef CONFIG_PRODUCT_Z2_PLUS
+				qcom,qpnp-lab-init-voltage = <5000000>;
+				qcom,qpnp-lab-init-amoled-voltage = <4600000>;
+				qcom,qpnp-lab-init-lcd-voltage = <5000000>;
+			#else
 				qcom,qpnp-lab-init-voltage = <5500000>;
 				qcom,qpnp-lab-init-amoled-voltage = <4600000>;
 				qcom,qpnp-lab-init-lcd-voltage = <5500000>;
-
+			#endif
 				qcom,qpnp-lab-soft-start = <800>;
 
 				qcom,qpnp-lab-full-pull-down;
@@ -634,6 +635,7 @@
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				qcom,id = <3>;
+				qcom,use-blink;
 			};
 
 			green_led: qcom,rgb_1 {
@@ -651,6 +653,7 @@
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				qcom,id = <4>;
+				qcom,use-blink;
 			};
 
 			blue_led: qcom,rgb_2 {
@@ -668,6 +671,7 @@
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				qcom,id = <5>;
+				qcom,use-blink;
 			};
 		};
 
@@ -702,7 +706,7 @@
 						"flash0_trigger";
 				qcom,id = <0>;
 				qcom,duration = <1280>;
-#ifdef CONFIG_PRODUCT_Z2_PLUS
+#if defined(CONFIG_PRODUCT_Z2_PLUS)
 				qcom,current = <800>;
 #else
 				qcom,current = <400>;

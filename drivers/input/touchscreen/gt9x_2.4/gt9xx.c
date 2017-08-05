@@ -492,7 +492,7 @@ static void gtp_pen_init(struct goodix_ts_data *ts)
     ts->pen_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
     
 #if GTP_ICS_SLOT_REPORT
-    input_mt_init_slots(ts->pen_dev, 16);               // 
+    input_mt_init_slots(ts->pen_dev, 16, 0);               // in case of "out of memory"
 #else
     ts->pen_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 #endif
@@ -613,8 +613,8 @@ static void goodix_ts_work_func(struct work_struct *work)
         return;
     }
 #if GTP_GESTURE_WAKEUP
-    if (DOZE_ENABLED == doze_status)
-    {               
+    if (DOZE_DISABLED != doze_status)
+    {          
         ret = gtp_i2c_read(i2c_connect_client, doze_buf, 3);
         GTP_DEBUG("0x814B = 0x%02X", doze_buf[2]);
         if (ret > 0)
@@ -1865,7 +1865,7 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 
     ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
 #if GTP_ICS_SLOT_REPORT
-    input_mt_init_slots(ts->input_dev, 16);     // in case of "out of memory"
+    input_mt_init_slots(ts->input_dev, 16, 0);     // in case of "out of memory"
 #else
     ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 #endif

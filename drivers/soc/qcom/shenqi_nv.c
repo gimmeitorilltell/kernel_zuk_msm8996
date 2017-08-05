@@ -1,4 +1,3 @@
-
 /*
  * Based on the work of Tony Sun
  * Zhenglq : Add for Get nv data from modem using SMEM.
@@ -20,7 +19,9 @@
 #define NV_MAX_SIZE		512
 /* [BEGIN] guohh1 20131011 add for FACTORYDATACHECK */
 //#define NV_OTHERS_SIZE		(NV_MAX_SIZE - NV_WIFI_ADDR_SIZE - NV_BT_ADDR_SIZE)
-#define NV_OTHERS_SIZE   (NV_MAX_SIZE - NV_WIFI_ADDR_SIZE - NV_BT_ADDR_SIZE-32-32-16-16-16 -16 - 32 -100)
+//#define NV_OTHERS_SIZE   (NV_MAX_SIZE - NV_WIFI_ADDR_SIZE - NV_BT_ADDR_SIZE-32-32-16-16-16 -16 - 32 -100)
+//[quanfj1] added for run qlogd when the first booting
+#define NV_OTHERS_SIZE   (NV_MAX_SIZE - NV_WIFI_ADDR_SIZE - NV_BT_ADDR_SIZE-32-32-16-16-16 -16 - 32 -100 -32)
 /* [END   ] guohh1 20131011 add for FACTORYDATACHECK*/
 
 struct smem_nv {
@@ -35,60 +36,31 @@ struct smem_nv {
 		unsigned char nv_hwid[16];
 		unsigned char nv_station[32];
 		/* [END   ] guohh1 20131011 add for FACTORYDATACHECK*/
+
+		//[quanfj1] read NV_FANCY_RUN_QLOGD_ALWAYS and set proc
+		unsigned char nv_qlogd[32];
+
 /* [BEGIN][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
        unsigned char nv_2498[100];
 /* [END][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
-	   unsigned char nv_others[NV_OTHERS_SIZE];	
+	   unsigned char nv_others[NV_OTHERS_SIZE];
 };
 static struct smem_nv * psmem_nv = NULL;
 
 void dump_smem(struct smem_nv *buf)
 {
-	int i;
-
-	for(i=0;i<NV_WIFI_ADDR_SIZE;i++)
-			printk(KERN_ALERT "wifi[%d] = %d ", i, (int)(buf->nv_wifi[i]));
-
-	for(i=0;i<NV_BT_ADDR_SIZE;i++)
-			printk(KERN_ALERT "bt[%d]= %d ", i,(int)buf->nv_bt[i]);
-
-	for(i=0;i<32;i++)
-			printk(KERN_ALERT "sn1[%d]= %d ", i,(int)buf->nv_sn1[i]);
-
-	for(i=0;i<32;i++)
-			printk(KERN_ALERT "sn2[%d]= %d ",i, (int)buf->nv_sn2[i]);
-
-	for(i=0;i<16;i++)
-			printk(KERN_ALERT "meid[%d]= %d ",i, (int)buf->nv_meid[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<16;i++)
-			printk(KERN_ALERT "imei1[%d]= %d ",i, (int)buf->nv_imei1[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<16;i++)
-			printk(KERN_ALERT "imei2[%d]= %d ", i, (int)buf->nv_imei2[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<16;i++)
-			printk(KERN_ALERT "hwid[%d]= %d ", i, (int)buf->nv_hwid[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<32;i++)
-			printk(KERN_ALERT "station[%d]= %d ", i, (int)buf->nv_station[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<100;i++)
-			printk(KERN_ALERT "2498[%d]= %d ", i, (int)buf->nv_2498[i]);
-	printk(KERN_ALERT "\n");
-
-	for(i=0;i<NV_OTHERS_SIZE;i++)
-			printk(KERN_ALERT "others[%d]= %d ", i, (int)buf->nv_others[i]);
-	printk(KERN_ALERT "\n");
-
-	printk(KERN_ALERT "\n");
-
-	return;
+    print_hex_dump(KERN_ALERT, "wifi   : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_wifi, NV_WIFI_ADDR_SIZE, false);
+    print_hex_dump(KERN_ALERT, "bt     : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_bt, NV_BT_ADDR_SIZE, false);
+    print_hex_dump(KERN_ALERT, "sn1    : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_sn1, 32, true);
+    print_hex_dump(KERN_ALERT, "sn2    : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_sn2, 32, true);
+    print_hex_dump(KERN_ALERT, "meid   : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_meid, 16, true);
+    print_hex_dump(KERN_ALERT, "imei1  : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_imei1, 16, true);
+    print_hex_dump(KERN_ALERT, "imei2  : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_imei2, 16, true);
+    print_hex_dump(KERN_ALERT, "hwid   : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_hwid, 16, true);
+    print_hex_dump(KERN_ALERT, "station: ", DUMP_PREFIX_NONE, 16, 1, buf->nv_station, 32, true);
+    print_hex_dump(KERN_ALERT, "2498   : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_2498, 100, true);
+    print_hex_dump(KERN_ALERT, "qlogd  : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_qlogd, 32, true);
+	print_hex_dump(KERN_ALERT, "others : ", DUMP_PREFIX_NONE, 16, 1, buf->nv_others, NV_OTHERS_SIZE, false);
 }
 
 static void smem_read_nv(void)
@@ -123,9 +95,9 @@ static long dump_wifi_addr(struct file *filp, char __user *buf, size_t count, lo
 		return 0;
 	}
 
-	printk(KERN_ERR "wifi addr  = 0x %02x %02x %02x %02x %02x %02x\n",
-					psmem_nv->nv_wifi[0],psmem_nv->nv_wifi[1],psmem_nv->nv_wifi[2],
-					psmem_nv->nv_wifi[3],psmem_nv->nv_wifi[4],psmem_nv->nv_wifi[5]);
+	//printk(KERN_ERR "wifi addr  = 0x %02x %02x %02x %02x %02x %02x\n",
+	//				psmem_nv->nv_wifi[0],psmem_nv->nv_wifi[1],psmem_nv->nv_wifi[2],
+	//				psmem_nv->nv_wifi[3],psmem_nv->nv_wifi[4],psmem_nv->nv_wifi[5]);
 
 	if(pos >= NV_WIFI_ADDR_SIZE)
 	{
@@ -138,7 +110,7 @@ static long dump_wifi_addr(struct file *filp, char __user *buf, size_t count, lo
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),NV_WIFI_ADDR_SIZE);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),NV_WIFI_ADDR_SIZE);
 	if(copy_to_user(buf,psmem_nv->nv_wifi+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -186,7 +158,7 @@ static long dump_bt_addr(struct file *filp, char __user *buf, size_t count, loff
 
 	len = sizeof(psmem_nv->nv_bt);
 
-	printk(KERN_ALERT"count = %d f_pos = %d len = %d\n",(int)count, (int)pos,(int)len);
+	//printk(KERN_ALERT"count = %d f_pos = %d len = %d\n",(int)count, (int)pos,(int)len);
 	if(pos >= len )
 	{
 			count = 0;
@@ -198,7 +170,7 @@ static long dump_bt_addr(struct file *filp, char __user *buf, size_t count, loff
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_bt + (*f_pos),count)){
 			count = -EFAULT;
 			goto out;
@@ -235,7 +207,7 @@ static long dump_lnv_sn1(struct file *filp, char __user *buf, size_t count, loff
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_sn1+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -271,7 +243,7 @@ static long dump_lnv_sn2(struct file *filp, char __user *buf, size_t count, loff
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_sn2+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -307,7 +279,7 @@ static long dump_lnv_meid(struct file *filp, char __user *buf, size_t count, lof
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_meid+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -343,7 +315,7 @@ static long dump_lnv_imei1(struct file *filp, char __user *buf, size_t count, lo
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_imei1+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -379,7 +351,7 @@ static long dump_lnv_imei2(struct file *filp, char __user *buf, size_t count, lo
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_imei2+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -415,7 +387,7 @@ static long dump_lnv_hwid(struct file *filp, char __user *buf, size_t count, lof
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_hwid+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -451,7 +423,7 @@ static long dump_lnv_station(struct file *filp, char __user *buf, size_t count, 
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	if(copy_to_user(buf,psmem_nv->nv_station+*f_pos,count)){
 			count = -EFAULT;
 			goto out;
@@ -488,7 +460,7 @@ static long dump_lnv_nv2498(struct file *filp, char __user *buf, size_t count, l
 
 	pos += count;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d addr = %lld\n",(int)count, (int)pos, (int)(*f_pos),(int)len,(long long)psmem_nv->nv_2498);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d addr = %lld\n",(int)count, (int)pos, (int)(*f_pos),(int)len,(long long)psmem_nv->nv_2498);
 	if(copy_to_user(buf,psmem_nv->nv_2498 + (*f_pos),count)){
 			count = -EFAULT;
 			goto out;
@@ -500,6 +472,44 @@ out:
 	return count;
 }
 /* [END][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
+
+
+//[quanfj1] read NV_FANCY_RUN_QLOGD_ALWAYS and set proc
+static long dump_lnv_qlogd(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+	loff_t pos = *f_pos;
+	size_t len;
+
+	if (!psmem_nv)
+		smem_read_nv();
+
+	if (!psmem_nv)
+		return 0;
+
+	len = sizeof(psmem_nv->nv_qlogd);
+
+	if(pos >= len)
+	{
+			count = 0;
+			goto out;
+	}
+
+	if(count > (len - pos))
+			count = len - pos;
+
+	pos += count;
+
+	if(copy_to_user(buf,psmem_nv->nv_qlogd + (*f_pos),count)){
+			count = -EFAULT;
+			goto out;
+	}
+
+	*f_pos = pos;
+
+out:
+	return count;
+}
+
 static long dump_lnv_debug(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) 
 {
 	loff_t pos = *f_pos;
@@ -526,7 +536,7 @@ static long dump_lnv_debug(struct file *filp, char __user *buf, size_t count, lo
 
 	*f_pos = pos;
 
-	printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
+	//printk(KERN_ALERT"count = %d pos = %d f_pos = %d len = %d\n",(int)count, (int)pos, (int)(*f_pos),(int)len);
 	dump_smem(psmem_nv);
 
 out:
@@ -578,6 +588,7 @@ DECLARE_FOPS(dump_lnv_imei2)
 DECLARE_FOPS(dump_lnv_hwid)
 DECLARE_FOPS(dump_lnv_station)
 DECLARE_FOPS(dump_lnv_nv2498)
+DECLARE_FOPS(dump_lnv_qlogd)
 DECLARE_FOPS(dump_lnv_debug)
 
 static void show_nv(void)
@@ -593,6 +604,9 @@ static void show_nv(void)
 		struct proc_dir_entry *hwid_addr_entry;
 		struct proc_dir_entry *station_addr_entry;
 		/* [END   ] guohh1 20131011 add for FACTORYDATACHECK*/
+
+		struct proc_dir_entry *qlogd_addr_entry; //[quanfj1] read NV_FANCY_RUN_QLOGD_ALWAYS and set proc
+
 		/* [BEGIN][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
 		struct proc_dir_entry *nv2498_addr_entry;
 		/* [END][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
@@ -609,6 +623,10 @@ static void show_nv(void)
 		hwid_addr_entry = proc_create("lnvhwid", 0, NULL, &dump_lnv_hwid_fops);
 		station_addr_entry = proc_create("lnvstation", 0, NULL, &dump_lnv_station_fops);
 		/* [END   ] guohh1 20131011 add for FACTORYDATACHECK*/
+
+		//[quanfj1] read NV_FANCY_RUN_QLOGD_ALWAYS and set proc 
+		qlogd_addr_entry = proc_create("lnvqlogd", 0, NULL, &dump_lnv_qlogd_fops);
+
 		/* [BEGIN][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
 		nv2498_addr_entry = proc_create("lnv2498", 0, NULL, &dump_lnv_nv2498_fops);
 		/* [END][PLAT-66][MODEM][guohh11][20150610] read NV2498 and set proc */
